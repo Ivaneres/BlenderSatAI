@@ -5,6 +5,7 @@ The goal of this project is to use computer vision classification and object det
 ### Computer Vision
 #### Object detection:
  * [ ] Research satellite imagery building detection algorithms, build an implementation that works for one country/area.
+ * [ ] Attempt to infer shape of roof from satellite image.
  * [ ] Extend to be robust with any building types/styles.
 
 #### Classification:
