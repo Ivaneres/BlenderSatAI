@@ -1,6 +1,10 @@
 # BlenderSatAI
 The goal of this project is to use computer vision classification and object detection to construct 3D building models from satellite imagery, extending the [BlenderGIS](https://github.com/domlysz/BlenderGIS) plugin with more accurate buildings out of the box.
 
+## Datasets
+
+The SpaceNet challenges provide large quantities of labelled data that will likely be suitable for this project. For example: https://spacenet.ai/spacenet-buildings-dataset-v2/ provides labelled buildings, which should be suitable for training building segmentation.
+
 ## Roadmap
 ### Computer Vision
 #### Object detection:
