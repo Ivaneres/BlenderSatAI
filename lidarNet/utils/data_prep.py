@@ -95,7 +95,8 @@ def create_dataset(ndsm_fp: str, rgb_out_dir: str, lidar_out_dir: str) -> None:
                     rasterio.CRS(init="EPSG:4326"),
                     np.transpose(gmaps_tile_np[..., :3], axes=(2, 0, 1)),
                     rgb_tile_fp,
-                    gmaps_dims
+                    gmaps_dims,
+                    channels=3
                 )
 
                 align_rasters(ndsm_gdal, rgb_tile_fp, ndsm_tile_fp)

@@ -1,3 +1,5 @@
 datasets/
 .idea/
 __pycache__/
+lidarNet/data/
+lidarNet/data.tar.gz

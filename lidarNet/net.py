@@ -1,3 +1,5 @@
+import shutil
+
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
@@ -10,7 +12,7 @@ import torch.nn.functional as F
 from torch.utils.data import RandomSampler
 
 from lidarNet.dataset import calculate_input_dim, LidarEnlarge, LidarNetDataset
-from lidarNet.utils.geo_utils import visualise_height_data
+from lidarNet.utils.geo_utils import visualise_height_data, create_raster_from_transform
 
 
 def crop_masks(masks, dims):
@@ -32,7 +34,7 @@ def crop_masks(masks, dims):
     return masks[:, :, top: h_old - bottom, left: w_old - right]
 
 
-RUN_TRAINING = False
+RUN_TRAINING = True
 UNET_LAYERS = 4
 IMAGE_DIMS = 590
 DOWNSCALE_FACTOR = 2
@@ -164,7 +166,7 @@ testloader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, sh
 valloader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 
 
-EPOCHS = 1
+EPOCHS = 3
 criterion = nn.L1Loss()
 
 loss_history = []
@@ -295,21 +297,33 @@ def visualise_test(mdl):
         # axs[(i * 2) + 1].imshow(test_net)
 
 
-def test_from_raster(raster: rasterio.DatasetReader):
-    mdl.eval()
+def test_from_raster(col: int, row: int, rgb_dir: str, lidar_dir: str, out_dir: str):
+    rgb_raster_fp = f"{rgb_dir}/col{col}_row{row}_rgb.tif"
+    lidar_raster_fp = f"{lidar_dir}/col{col}_row{row}_ndsm.tif"
+    rgb_raster = rasterio.open(rgb_raster_fp)
 
-    test_in = np.transpose(raster.read((3, 2, 1)), axes=(1, 2, 0))
-    img = np.copy(test_in)
+    mdl.eval()
+    test_in = np.transpose(rgb_raster.read((3, 2, 1)), axes=(1, 2, 0))
+    img = np.transpose(np.copy(test_in), axes=(2, 0, 1))
     test_in = transform(test_in)
     test_in = test_in.to(device)
 
     with torch.no_grad():
         outputs = mdl(test_in.unsqueeze(dim=0)).squeeze(dim=0)
     height_preds = outputs[0].cpu()
-    print(height_preds.shape)
-    print(img.shape)
-    img = crop_masks(img, (584, 584))
-    print(img.shape)
+    height_preds = LidarEnlarge(img.shape[-2:])(torch.unsqueeze(height_preds, dim=0))
+
+    create_raster_from_transform(
+        rgb_raster.transform,
+        rgb_raster.crs,
+        height_preds.detach().numpy(),
+        f"./{out_dir}/model_preds_3_epochs.tif",
+        height_preds.shape[-2:],
+        channels=1
+    )
+
+    shutil.copy(rgb_raster_fp, f"{out_dir}/rgb.tif")
+    shutil.copy(lidar_raster_fp, f"{out_dir}/gt.tif")
 
 
-test_from_raster(rasterio.open("./lidarNet/data/london/rgb/col73_row42_rgb.tif"))
+test_from_raster(55, 35, "./lidarNet/data/london/rgb", "./lidarNet/data/london/lidar", "./testing")

@@ -78,14 +78,14 @@ def get_bounds_from_raster(raster: rasterio.DatasetReader) -> Tuple[LatLong, Lat
     return nw, ne, sw, se
 
 
-def create_raster_from_transform(transform, crs, data, fp, dims):
+def create_raster_from_transform(transform, crs, data, fp, dims, channels: int):
     raster_writer = rasterio.open(
         fp,
         "w",
         driver="GTiff",
         height=dims[0],
         width=dims[1],
-        count=3,
+        count=channels,
         dtype=data.dtype,
         crs=crs,
         transform=transform
