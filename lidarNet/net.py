@@ -11,7 +11,7 @@ from torch.utils.data import random_split
 import torch.nn.functional as F
 from torch.utils.data import RandomSampler
 
-from lidarNet.dataset import calculate_input_dim, LidarEnlarge, LidarNetDataset
+from lidarNet.dataset import calculate_input_dim, LidarEnlarge, LidarNetDataset, calculate_unet_output_dim
 from lidarNet.utils.geo_utils import visualise_height_data, create_raster_from_transform
 
 
@@ -38,14 +38,15 @@ RUN_TRAINING = True
 UNET_LAYERS = 4
 IMAGE_DIMS = 590
 DOWNSCALE_FACTOR = 2
-unet_input_dim = calculate_input_dim(IMAGE_DIMS // DOWNSCALE_FACTOR, UNET_LAYERS)
+BATCH_SIZE = 5
+unet_input_dim = calculate_input_dim(int(IMAGE_DIMS // DOWNSCALE_FACTOR), UNET_LAYERS) * 2
 
 unet_output_upscale = transforms.Resize(IMAGE_DIMS)
 
 transform = transforms.Compose(
     [
         transforms.ToTensor(),
-        transforms.Resize(IMAGE_DIMS // DOWNSCALE_FACTOR),
+        # transforms.Resize(int(IMAGE_DIMS // DOWNSCALE_FACTOR)),
         LidarEnlarge((unet_input_dim, unet_input_dim))
     ]
 )
@@ -53,7 +54,7 @@ transform = transforms.Compose(
 train_transforms = transforms.Compose(
     [
         transforms.ToTensor(),
-        transforms.Resize(IMAGE_DIMS // DOWNSCALE_FACTOR),
+        # transforms.Resize(int(IMAGE_DIMS // DOWNSCALE_FACTOR)),
         transforms.ColorJitter(brightness=0.3, contrast=0.7, saturation=0.7, hue=0.05),
         LidarEnlarge((unet_input_dim, unet_input_dim))
     ]
@@ -113,6 +114,7 @@ class UNet(nn.Module):
         self.encoder = nn.Sequential(*encoder_layers)
         self.decoder = nn.Sequential(*decoder_layers)
 
+        self.downscale = nn.Conv2d(channels[0], channels[0], kernel_size=3, stride=2, padding=1)
         self.upscale = nn.ConvTranspose2d(1, 1, kernel_size=2, stride=2)
 
     def encode(self, x):
@@ -139,9 +141,11 @@ class UNet(nn.Module):
         return self.final_layer(z)
 
     def forward(self, x):
+        x = self.downscale(x)
         z, xs = self.encode(x)
         m = self.decode(z, xs)
-        return self.upscale(m)
+        m = self.upscale(m)
+        return m
 
 
 train_test_split = 0.9
@@ -159,14 +163,12 @@ print("CUDA working:", torch.cuda.is_available())
 print("Data shape:", train_dataset[0][0].shape, "Mask shape:", train_dataset[0][1].shape)
 print("Training data:", len(train_dataset), "Testing data:", len(test_dataset), "Validation data:", len(val_dataset))
 
-BATCH_SIZE = 5
-
 trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
 testloader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 valloader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 
 
-EPOCHS = 3
+EPOCHS = 1
 criterion = nn.L1Loss()
 
 loss_history = []
@@ -317,7 +319,7 @@ def test_from_raster(col: int, row: int, rgb_dir: str, lidar_dir: str, out_dir: 
         rgb_raster.transform,
         rgb_raster.crs,
         height_preds.detach().numpy(),
-        f"./{out_dir}/model_preds_3_epochs.tif",
+        f"./{out_dir}/model_preds_1_epoch_downscaling.tif",
         height_preds.shape[-2:],
         channels=1
     )
