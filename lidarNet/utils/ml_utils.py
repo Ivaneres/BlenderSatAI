@@ -8,7 +8,9 @@ from torch.utils.data import RandomSampler
 from torchvision.transforms import transforms
 
 from lidarNet.dataset import LidarEnlarge
-from lidarNet.utils.geo_utils import visualise_height_data, create_raster_from_transform
+from lidarNet.utils.geo_utils import visualise_height_data, create_raster_from_transform, LatLong, gcps_from_bounds
+from lidarNet.utils.gmaps_api import get_gmap_satellite_image
+from lidarNet.utils.mercator import get_bounds_from_nw_corner, from_latlong_to_point, from_point_to_latlong
 
 
 def crop_masks(masks, dims):
@@ -101,10 +103,62 @@ def test_from_raster(col: int, row: int, rgb_dir: str, lidar_dir: str, out_dir: 
         rgb_raster.transform,
         rgb_raster.crs,
         height_preds.detach().numpy(),
-        f"./{out_dir}/model_preds_3_epoch_downscaling.tif",
+        f"./{out_dir}/model_preds_20_epoch_transconv.tif",
         height_preds.shape[-2:],
         channels=1
     )
 
     shutil.copy(rgb_raster_fp, f"{out_dir}/rgb.tif")
     shutil.copy(lidar_raster_fp, f"{out_dir}/gt.tif")
+
+
+def run_from_coords(coords: LatLong, mdl, transform, device, out_dir, test_name, gmaps_dim=590):
+    ZOOM = 18
+    tile = get_gmap_satellite_image(coords, ZOOM)
+    tile = np.transpose(tile[..., :3], axes=(2, 0, 1))
+
+    scale = 2 ** ZOOM
+    gmaps_dim_mercator = gmaps_dim / scale
+
+    center_point = from_latlong_to_point(coords)
+    center_point.x -= gmaps_dim_mercator
+    center_point.y -= gmaps_dim_mercator
+
+    gmaps_bounds = get_bounds_from_nw_corner(
+        from_point_to_latlong(center_point),
+        ZOOM,
+        gmaps_dim,
+        gmaps_dim
+    )
+    gcps = gcps_from_bounds(gmaps_bounds, (gmaps_dim,) * 2)
+    gmaps_transform = rasterio.transform.from_gcps(gcps)
+
+    create_raster_from_transform(
+        gmaps_transform,
+        rasterio.CRS(init="EPSG:4326"),
+        tile,
+        f"{out_dir}/rgb_{test_name}.tif",
+        (gmaps_dim,) * 2,
+        channels=3
+    )
+
+    mdl.eval()
+    test_in = np.transpose(tile, axes=(1, 2, 0))
+    img = np.transpose(np.copy(test_in), axes=(2, 0, 1))
+    test_in = transform(test_in)
+    test_in = test_in.to(device)
+
+    with torch.no_grad():
+        outputs = mdl(test_in.unsqueeze(dim=0)).squeeze(dim=0)
+    height_preds = outputs[0].cpu()
+    height_preds = transforms.Resize(img.shape[-2:])(torch.unsqueeze(height_preds, dim=0))
+
+    create_raster_from_transform(
+        gmaps_transform,
+        rasterio.CRS(init="EPSG:4326"),
+        height_preds,
+        f"{out_dir}/heights_{test_name}.tif",
+        (gmaps_dim,) * 2,
+        channels=1
+    )
+

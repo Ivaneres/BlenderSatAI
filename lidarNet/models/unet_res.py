@@ -42,7 +42,8 @@ class UpsamplingResBlock(nn.Module):
         super().__init__()
 
         self.conv1 = conv2d_layer(in_channels, out_channels)
-        self.upsample = nn.Upsample(scale_factor=2)
+        self.upsample1 = nn.ConvTranspose2d(out_channels, out_channels, 2, stride=2)
+        self.upsample2 = nn.ConvTranspose2d(out_channels, out_channels, 2, stride=2)
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.relu1 = nn.PReLU()
         self.conv2 = conv2d_layer(out_channels, out_channels)
@@ -53,13 +54,13 @@ class UpsamplingResBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         res = self.conv1(x)
-        res = self.upsample(res)
+        res = self.upsample1(res)
         res = self.bn1(res)
         res = self.relu1(res)
         res = self.conv2(res)
 
         concat = self.conv3(x)
-        concat = self.upsample(concat)
+        concat = self.upsample2(concat)
 
         res += concat
         res = self.bn2(res)

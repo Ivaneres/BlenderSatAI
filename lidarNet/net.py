@@ -8,7 +8,8 @@ from lidarNet.dataset import calculate_input_dim, LidarEnlarge, LidarNetDataset
 from lidarNet.loss_funcs import val_loss, l1_loss_custom
 from lidarNet.models.unet import UNet
 from lidarNet.models.unet_res import UNetRes
-from lidarNet.utils.ml_utils import crop_masks, test_from_raster
+from lidarNet.utils.geo_utils import LatLong
+from lidarNet.utils.ml_utils import crop_masks, test_from_raster, run_from_coords
 
 RUN_TRAINING = True
 UNET_LAYERS = 4
@@ -16,7 +17,7 @@ IMAGE_DIMS = 590
 DOWNSCALE_FACTOR = 2
 RESIZE_DIM = 512
 
-BATCH_SIZE = 4
+BATCH_SIZE = 3
 unet_input_dim = calculate_input_dim(int(IMAGE_DIMS // DOWNSCALE_FACTOR), UNET_LAYERS) * 2
 unet_input_dim = IMAGE_DIMS
 
@@ -67,7 +68,7 @@ testloader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, sh
 valloader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 
 
-EPOCHS = 1
+EPOCHS = 10
 criterion = l1_loss_custom
 
 loss_history = []
@@ -108,7 +109,7 @@ def train(mdl, opt, test_loader):
             if i % 10 == 9:    # print every 2000 mini-batches
                 v_loss = val_loss(mdl, valloader, device, criterion)
                 mdl.train()
-                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 10:.3f} val_loss: {v_loss}')
+                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 10:.3f} val_loss: {v_loss:.3f}')
                 loss_history.append(loss)
                 val_loss_history.append(v_loss)
                 # wandb.log({"loss": running_loss, "val_loss": v_loss})
@@ -119,14 +120,15 @@ mdl_cls = UNetRes
 if RUN_TRAINING:
     mdl = mdl_cls().to(device)
     train(mdl, optim.Adam(mdl.parameters(), lr=1e-4, weight_decay=1e-8), trainloader)
-    torch.save(mdl.state_dict(), "./model.pt")
+    torch.save(mdl.state_dict(), "./model_upconv.pt")
 else:
     mdl = mdl_cls().to(device)
-    mdl.load_state_dict(torch.load("./model.pt"))
+    mdl.load_state_dict(torch.load("./model_upconv.pt"))
 mdl.eval()
 
 # plt.plot([x.item() for x in loss_history][10:])
 # plt.plot(val_loss_history[10:])
 
 
-test_from_raster(55, 35, "./lidarNet/data/london/rgb", "./lidarNet/data/london/lidar", "./testing", mdl, transform, device)
+# test_from_raster(55, 35, "./lidarNet/data/london/rgb", "./lidarNet/data/london/lidar", "./testing", mdl, transform, device)
+run_from_coords(LatLong(51.5011098, -0.1773669), mdl, transform, device, "./testing")
