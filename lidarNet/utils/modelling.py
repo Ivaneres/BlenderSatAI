@@ -1,11 +1,12 @@
 from argparse import ArgumentParser
 
 import numpy as np
+import open3d as o3d
 
 from lidarNet.utils.geo_utils import load_lidar_data
 
 
-def np_to_obj(arr: np.ndarray) -> str:
+def np_to_obj_basic(arr: np.ndarray) -> str:
     assert len(arr.shape) == 2
     res = []
     INDEX_SCALE = 0.05
@@ -22,6 +23,10 @@ def np_to_obj(arr: np.ndarray) -> str:
     return "\n".join(res)
 
 
+def np_to_obj_poisson(arr: np.ndarray):
+    pcd = o3d.geometry.PointCloud()
+
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-i", "--input", help="Input file. Expects geotiff.", required=True)
@@ -34,7 +39,7 @@ if __name__ == "__main__":
 
     ndsm_obj, ndsm = load_lidar_data(args.input)
     ndsm[ndsm < 0] = 0
-    a = np_to_obj(ndsm)
+    a = np_to_obj_poisson(ndsm)
     out_fp = args.output
     if not out_fp.endswith(".obj"):
         out_fp += ".obj"

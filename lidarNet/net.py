@@ -11,7 +11,8 @@ from lidarNet.models.unet_res import UNetRes
 from lidarNet.utils.geo_utils import LatLong
 from lidarNet.utils.ml_utils import crop_masks, test_from_raster, run_from_coords
 
-RUN_TRAINING = True
+RUN_TRAINING = False
+CONTINUE_TRAINING = "./model_50.pt"
 UNET_LAYERS = 4
 IMAGE_DIMS = 590
 DOWNSCALE_FACTOR = 2
@@ -119,16 +120,18 @@ def train(mdl, opt, test_loader):
 mdl_cls = UNetRes
 if RUN_TRAINING:
     mdl = mdl_cls().to(device)
+    if CONTINUE_TRAINING:
+        mdl.load_state_dict(torch.load(CONTINUE_TRAINING))
     train(mdl, optim.Adam(mdl.parameters(), lr=1e-4, weight_decay=1e-8), trainloader)
-    torch.save(mdl.state_dict(), "./model_upconv.pt")
+    torch.save(mdl.state_dict(), "./model_70.pt")
 else:
     mdl = mdl_cls().to(device)
-    mdl.load_state_dict(torch.load("./model_upconv.pt"))
+    mdl.load_state_dict(torch.load("./model_70.pt"))
 mdl.eval()
 
 # plt.plot([x.item() for x in loss_history][10:])
 # plt.plot(val_loss_history[10:])
 
 
-# test_from_raster(55, 35, "./lidarNet/data/london/rgb", "./lidarNet/data/london/lidar", "./testing", mdl, transform, device)
-run_from_coords(LatLong(51.5011098, -0.1773669), mdl, transform, device, "./testing")
+test_from_raster(55, 35, "./lidarNet/data/london/rgb", "./lidarNet/data/london/lidar", "./testing", mdl, transform, device)
+# run_from_coords(LatLong(51.55640757,-0.17158108), mdl, transform, device, "./testing", "house")

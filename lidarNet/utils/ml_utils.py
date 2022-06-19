@@ -121,8 +121,8 @@ def run_from_coords(coords: LatLong, mdl, transform, device, out_dir, test_name,
     gmaps_dim_mercator = gmaps_dim / scale
 
     center_point = from_latlong_to_point(coords)
-    center_point.x -= gmaps_dim_mercator
-    center_point.y -= gmaps_dim_mercator
+    center_point.x -= gmaps_dim_mercator / 2
+    center_point.y -= gmaps_dim_mercator / 2
 
     gmaps_bounds = get_bounds_from_nw_corner(
         from_point_to_latlong(center_point),
@@ -156,7 +156,7 @@ def run_from_coords(coords: LatLong, mdl, transform, device, out_dir, test_name,
     create_raster_from_transform(
         gmaps_transform,
         rasterio.CRS(init="EPSG:4326"),
-        height_preds,
+        height_preds.detach().numpy(),
         f"{out_dir}/heights_{test_name}.tif",
         (gmaps_dim,) * 2,
         channels=1
