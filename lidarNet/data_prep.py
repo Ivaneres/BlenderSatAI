@@ -1,18 +1,15 @@
-from typing import Tuple, Dict
-
+import fiona
 import numpy as np
 import rasterio
+from fiona.crs import from_epsg
 from osgeo import gdalconst, gdal
 
-from lidarNet.utils.geo_utils import load_lidar_data, convert_crs, LatLong, gcps_from_bounds, \
+from lidarNet.utils.geo_utils import convert_crs, LatLong, gcps_from_bounds, \
     create_raster_from_transform, align_rasters, get_bounds_from_raster, Point, fiona_shape, line_func_from_two_points, \
     reverse_line_func_from_two_points
 from lidarNet.utils.gmaps_api import SATELLITE_IMG_DIM, get_gmap_satellite_image
 from lidarNet.utils.mercator import get_center_from_nw_corner, get_bounds_from_nw_corner, from_latlong_to_point, \
     from_point_to_latlong
-
-import fiona
-from fiona.crs import from_epsg
 
 
 def create_dataset(ndsm_fp: str, rgb_out_dir: str, lidar_out_dir: str) -> None:
@@ -111,4 +108,5 @@ def create_dataset(ndsm_fp: str, rgb_out_dir: str, lidar_out_dir: str) -> None:
     print(f"Total tiles (approx): {column_counter * row_counter}")
 
 
-create_dataset("./salisbury/salisbury_ndsm_clipped.tif", "./lidarNet/data/salisbury/rgb", "./lidarNet/data/salisbury/lidar")
+if __name__ == "__main__":
+    create_dataset("./P_12151/nsdm.tif", "./lidarNet/data/london/rgb", "./lidarNet/data/london/lidar")

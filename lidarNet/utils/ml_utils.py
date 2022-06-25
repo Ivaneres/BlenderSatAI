@@ -1,4 +1,5 @@
 import shutil
+import subprocess
 
 import numpy as np
 import rasterio
@@ -103,13 +104,13 @@ def test_from_raster(col: int, row: int, rgb_dir: str, lidar_dir: str, out_dir: 
         rgb_raster.transform,
         rgb_raster.crs,
         height_preds.detach().numpy(),
-        f"./{out_dir}/model_preds_20_epoch_transconv.tif",
+        f"./{out_dir}/preds_{col},{row}.tif",
         height_preds.shape[-2:],
         channels=1
     )
 
-    shutil.copy(rgb_raster_fp, f"{out_dir}/rgb.tif")
-    shutil.copy(lidar_raster_fp, f"{out_dir}/gt.tif")
+    shutil.copy(rgb_raster_fp, f"{out_dir}/rgb_{col},{row}.tif")
+    shutil.copy(lidar_raster_fp, f"{out_dir}/gt_{col},{row}.tif")
 
 
 def run_from_coords(coords: LatLong, mdl, transform, device, out_dir, test_name, gmaps_dim=590):
@@ -161,4 +162,3 @@ def run_from_coords(coords: LatLong, mdl, transform, device, out_dir, test_name,
         (gmaps_dim,) * 2,
         channels=1
     )
-

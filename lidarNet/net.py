@@ -1,18 +1,18 @@
 import torch
-from matplotlib import pyplot as plt
-from torch import nn, optim
-from torchvision.transforms import transforms
+from torch import optim
 from torch.utils.data import random_split
+from torchvision.transforms import transforms
 
-from lidarNet.dataset import calculate_input_dim, LidarEnlarge, LidarNetDataset
+from lidarNet.dataset import calculate_input_dim, LidarNetDataset
 from lidarNet.loss_funcs import val_loss, l1_loss_custom
 from lidarNet.models.unet import UNet
 from lidarNet.models.unet_res import UNetRes
 from lidarNet.utils.geo_utils import LatLong
-from lidarNet.utils.ml_utils import crop_masks, test_from_raster, run_from_coords
+from lidarNet.utils.ml_utils import run_from_coords
+from lidarNet.visualise import vis_row_2
 
 RUN_TRAINING = False
-CONTINUE_TRAINING = "./model_50.pt"
+CONTINUE_TRAINING = "./model_70.pt"
 UNET_LAYERS = 4
 IMAGE_DIMS = 590
 DOWNSCALE_FACTOR = 2
@@ -56,10 +56,18 @@ dataset = LidarNetDataset(
     target_transform=target_transforms
 )
 split_index = int(len(dataset) * train_test_split)
-train_dataset, test_dataset = random_split(dataset, [split_index, len(dataset) - split_index])
+train_dataset, test_dataset = random_split(
+    dataset,
+    [split_index, len(dataset) - split_index],
+    generator=torch.Generator().manual_seed(42)
+)
 train_dataset.dataset.transform = train_transforms
 test_size = len(test_dataset)
-test_dataset, val_dataset = random_split(test_dataset, [test_size // 2, test_size - test_size // 2])
+test_dataset, val_dataset = random_split(
+    test_dataset,
+    [test_size // 2, test_size - test_size // 2],
+    generator=torch.Generator().manual_seed(42)
+)
 print("CUDA working:", torch.cuda.is_available())
 print("Data shape:", train_dataset[0][0].shape, "Mask shape:", train_dataset[0][1].shape)
 print("Training data:", len(train_dataset), "Testing data:", len(test_dataset), "Validation data:", len(val_dataset))
@@ -67,7 +75,6 @@ print("Training data:", len(train_dataset), "Testing data:", len(test_dataset), 
 trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=1)
 testloader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
 valloader = torch.utils.data.DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
-
 
 EPOCHS = 10
 criterion = l1_loss_custom
@@ -80,7 +87,8 @@ device = torch.device("cuda:0")
 
 def make_model(config):
     mdl = UNet(UNET_LAYERS).to(device)
-    optimizer = optim.RMSprop(mdl.parameters(), lr=config["learning_rate"], weight_decay=1e-8, momentum=config["momentum"])
+    optimizer = optim.RMSprop(mdl.parameters(), lr=config["learning_rate"], weight_decay=1e-8,
+                              momentum=config["momentum"])
     return mdl, optimizer
 
 
@@ -107,7 +115,7 @@ def train(mdl, opt, test_loader):
             # plt.show()
 
             running_loss += loss.item()
-            if i % 10 == 9:    # print every 2000 mini-batches
+            if i % 10 == 9:  # print every 2000 mini-batches
                 v_loss = val_loss(mdl, valloader, device, criterion)
                 mdl.train()
                 print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 10:.3f} val_loss: {v_loss:.3f}')
@@ -123,15 +131,32 @@ if RUN_TRAINING:
     if CONTINUE_TRAINING:
         mdl.load_state_dict(torch.load(CONTINUE_TRAINING))
     train(mdl, optim.Adam(mdl.parameters(), lr=1e-4, weight_decay=1e-8), trainloader)
-    torch.save(mdl.state_dict(), "./model_70.pt")
+    torch.save(mdl.state_dict(), "./model_80.pt")
 else:
     mdl = mdl_cls().to(device)
     mdl.load_state_dict(torch.load("./model_70.pt"))
 mdl.eval()
 
-# plt.plot([x.item() for x in loss_history][10:])
-# plt.plot(val_loss_history[10:])
+# countryside_dataset = LidarNetDataset(
+#     "./lidarNet/data/salisbury/rgb",
+#     "./lidarNet/data/salisbury/lidar",
+#     transform=transform,
+#     target_transform=target_transforms
+# )
+#
+# countryside_loader = torch.utils.data.DataLoader(countryside_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
+# eval_loader = countryside_loader
+#
+# testloss_mae = val_loss(mdl, eval_loader, device, l1_loss_custom)
+# print("Test MAE:", len(eval_loader), testloss_mae, testloss_mae / len(eval_loader))
+#
+# testloss_rmse = val_loss(mdl, eval_loader, device, rmse_loss_custom)
+# print("Test RMS:", len(eval_loader), testloss_rmse, testloss_rmse / len(eval_loader))
 
+test_name = "ram"
+run_from_coords(LatLong.from_reverse(-0.1776889, 51.5024446), mdl, transform, device, "./testing", test_name)
+vis_row_2(f"./testing/rgb_{test_name}.tif", f"./testing/heights_{test_name}.tif")
 
-test_from_raster(55, 35, "./lidarNet/data/london/rgb", "./lidarNet/data/london/lidar", "./testing", mdl, transform, device)
-# run_from_coords(LatLong(51.55640757,-0.17158108), mdl, transform, device, "./testing", "house")
+# row, col = 26, 40
+# test_from_raster(col, row, "./lidarNet/data/salisbury/rgb", "./lidarNet/data/salisbury/lidar", "./testing", mdl, transform, device)
+# vis_row_3(f"./testing/rgb_{col},{row}.tif", f"./testing/gt_{col},{row}.tif", f"./testing/preds_{col},{row}.tif")

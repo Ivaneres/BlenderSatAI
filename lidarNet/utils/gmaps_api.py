@@ -6,7 +6,7 @@ from matplotlib.image import imread
 
 from lidarNet.utils.geo_utils import LatLong
 
-API_KEY = "AIzaSyB_MQrIkzvHx6YttJA8jcJFkiQVJ9PZ6nU"
+API_KEY = "GMAPS_API_KEY"
 RES = 640
 CROP = 25
 SATELLITE_IMG_DIM = RES - CROP * 2

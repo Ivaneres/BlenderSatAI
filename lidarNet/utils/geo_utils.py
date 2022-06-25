@@ -4,7 +4,7 @@ from typing import Tuple, Dict, Callable, List
 
 import numpy as np
 import rasterio
-# from osgeo import gdalconst, gdal
+from osgeo import gdalconst, gdal
 from pyproj.transformer import TransformerGroup, Transformer
 from rasterio.control import GroundControlPoint as GCP
 
@@ -16,6 +16,10 @@ class LatLong:
 
     def __str__(self):
         return f"{self.lat},{self.long}"
+
+    @staticmethod
+    def from_reverse(long: float, lat: float):
+        return LatLong(lat, long)
 
     def to_tuple(self):
         return self.long, self.lat
@@ -95,21 +99,21 @@ def create_raster_from_transform(transform, crs, data, fp, dims, channels: int):
     raster_writer.close()
 
 
-# def align_rasters(raster_in: gdal.Dataset, raster_match_fp, raster_out_fp):
-#     src_proj = raster_in.GetProjection()
-#
-#     match_ds = gdal.Open(raster_match_fp, gdalconst.GA_ReadOnly)
-#     match_proj = match_ds.GetProjection()
-#     match_geotrans = match_ds.GetGeoTransform()
-#     wide = match_ds.RasterXSize
-#     high = match_ds.RasterYSize
-#
-#     dst = gdal.GetDriverByName('GTiff').Create(raster_out_fp, wide, high, 1, gdalconst.GDT_Float32)
-#     dst.SetGeoTransform(match_geotrans)
-#     dst.SetProjection(match_proj)
-#
-#     gdal.ReprojectImage(raster_in, dst, src_proj, match_proj, gdalconst.GRA_Bilinear)
-#     del dst
+def align_rasters(raster_in: gdal.Dataset, raster_match_fp, raster_out_fp):
+    src_proj = raster_in.GetProjection()
+
+    match_ds = gdal.Open(raster_match_fp, gdalconst.GA_ReadOnly)
+    match_proj = match_ds.GetProjection()
+    match_geotrans = match_ds.GetGeoTransform()
+    wide = match_ds.RasterXSize
+    high = match_ds.RasterYSize
+
+    dst = gdal.GetDriverByName('GTiff').Create(raster_out_fp, wide, high, 1, gdalconst.GDT_Float32)
+    dst.SetGeoTransform(match_geotrans)
+    dst.SetProjection(match_proj)
+
+    gdal.ReprojectImage(raster_in, dst, src_proj, match_proj, gdalconst.GRA_Bilinear)
+    del dst
 
 
 def fiona_shape(points: List[LatLong]) -> Dict:

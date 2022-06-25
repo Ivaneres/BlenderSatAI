@@ -33,3 +33,8 @@ def val_loss(mdl, val_loader, device, criterion):
 def l1_loss_custom(inputs, targets):
     targets[targets < 0] = inputs[targets < 0]
     return nn.L1Loss()(inputs, targets)
+
+
+def rmse_loss_custom(inputs, targets):
+    targets[targets < 0] = inputs[targets < 0]
+    return torch.sqrt(nn.MSELoss()(inputs, targets))

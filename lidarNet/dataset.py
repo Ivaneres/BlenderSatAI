@@ -3,8 +3,8 @@ import re
 
 import numpy as np
 import rasterio
-from torch.utils.data import Dataset
 import torch.nn.functional as F
+from torch.utils.data import Dataset
 
 
 class LidarEnlarge:

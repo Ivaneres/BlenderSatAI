@@ -1,9 +1,11 @@
 from argparse import ArgumentParser
 
 import numpy as np
-import open3d as o3d
 
 from lidarNet.utils.geo_utils import load_lidar_data
+
+
+# import open3d as o3d
 
 
 def np_to_obj_basic(arr: np.ndarray) -> str:
@@ -11,7 +13,7 @@ def np_to_obj_basic(arr: np.ndarray) -> str:
     res = []
     INDEX_SCALE = 0.05
     for y, x in np.ndindex(*arr.shape):
-        res.append(f"v {(x * INDEX_SCALE):.3f} {(arr[y, x] * INDEX_SCALE):.3f} {(y * INDEX_SCALE):.3f} 1.0")
+        res.append(f"v {(x * INDEX_SCALE):.3f} {(arr[y, x] * INDEX_SCALE * 3):.3f} {(y * INDEX_SCALE):.3f} 1.0")
     vertex_count = len(res)
     print(f"Vertex count: {vertex_count}")
     res.append("")
@@ -21,10 +23,6 @@ def np_to_obj_basic(arr: np.ndarray) -> str:
     # print(f"Largest count: {count + arr.shape[1] + 1}")
     print(f"Face count: {len(res) - vertex_count - 1}")
     return "\n".join(res)
-
-
-def np_to_obj_poisson(arr: np.ndarray):
-    pcd = o3d.geometry.PointCloud()
 
 
 if __name__ == "__main__":
@@ -39,7 +37,7 @@ if __name__ == "__main__":
 
     ndsm_obj, ndsm = load_lidar_data(args.input)
     ndsm[ndsm < 0] = 0
-    a = np_to_obj_poisson(ndsm)
+    a = np_to_obj_basic(ndsm)
     out_fp = args.output
     if not out_fp.endswith(".obj"):
         out_fp += ".obj"

@@ -1,8 +1,9 @@
+import math
 from io import BytesIO
 from typing import Tuple
-import requests
-import math
+
 import numpy as np
+import requests
 from matplotlib.image import imread
 
 from lidarNet.utils.geo_utils import convert_to_epsg4326
